@@ -1,0 +1,4 @@
+azure-functions
+firebase-admin
+tzdata
+google-genai

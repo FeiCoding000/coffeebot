@@ -1,0 +1,9 @@
+.git*
+.venv/
+.idea/
+__pycache__/
+local.settings.json
+AzuriteConfig
+__azurite_db_*.json
+__blobstorage__/
+__queuestorage__/

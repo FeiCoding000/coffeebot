@@ -1,0 +1,9 @@
+firebase-service-account.json
+local.settings.json
+.venv/
+.idea/
+__pycache__/
+__azurite_db_*.json
+__blobstorage__/
+__queuestorage__/
+AzuriteConfig

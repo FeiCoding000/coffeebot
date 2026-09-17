@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "GEMINI_API_KEY": "your-gemini-api-key",
+    "GEMINI_MODEL": "gemini-3.5-flash-lite",
+    "BOT_NAME": "Gemini 🤖",
+    "DEFAULT_GUESS": "90",
+    "COFFEE_BOT_SCHEDULE": "0 0 3 * * *",
+    "WEBSITE_TIME_ZONE": "Australia/Sydney"
+  }
+}
