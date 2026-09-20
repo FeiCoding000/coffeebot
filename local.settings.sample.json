@@ -4,10 +4,11 @@
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "GEMINI_API_KEY": "your-gemini-api-key",
+    "FIREBASE_SERVICE_ACCOUNT_BASE64": "base64-encoded-firebase-service-account-json",
     "GEMINI_MODEL": "gemini-3.5-flash-lite",
     "BOT_NAME": "Gemini 🤖",
     "DEFAULT_GUESS": "90",
-    "COFFEE_BOT_SCHEDULE": "0 0 3 * * *",
+    "COFFEE_BOT_SCHEDULE": "0 0 3 * * 1-5",
     "WEBSITE_TIME_ZONE": "Australia/Sydney"
   }
 }

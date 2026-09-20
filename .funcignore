@@ -3,6 +3,7 @@
 .idea/
 __pycache__/
 local.settings.json
+firebase-service-account.json
 AzuriteConfig
 __azurite_db_*.json
 __blobstorage__/

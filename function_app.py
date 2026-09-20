@@ -1,21 +1,43 @@
-import azure.functions as func
+import base64
+import json
 import logging
 import os
-import json
 import re
-import firebase_admin
-from firebase_admin import firestore, credentials
-from zoneinfo import ZoneInfo
 from datetime import datetime, timezone
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
+import azure.functions as func
+import firebase_admin
+from firebase_admin import credentials, firestore
 from google import genai
+from google.cloud import firestore as google_firestore
 
+logger = logging.getLogger(__name__)
 
 app = func.FunctionApp()
 
 # Firebase
-cred = credentials.Certificate("firebase-service-account.json")
+FIREBASE_SERVICE_ACCOUNT_FILE = "firebase-service-account.json"
+
+
+def get_firebase_credential():
+    service_account_base64 = os.getenv("FIREBASE_SERVICE_ACCOUNT_BASE64")
+    service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+
+    if service_account_base64:
+        service_account_info = json.loads(
+            base64.b64decode(service_account_base64).decode("utf-8")
+        )
+        return credentials.Certificate(service_account_info)
+
+    if service_account_json:
+        return credentials.Certificate(json.loads(service_account_json))
+
+    return credentials.Certificate(FIREBASE_SERVICE_ACCOUNT_FILE)
+
+
+cred = get_firebase_credential()
 firebase_admin.initialize_app(cred)
 
 db = firestore.client()
@@ -89,7 +111,7 @@ def ensure_daily_round_open():
     date_key = today.isoformat()
     transaction = db.transaction()
 
-    @firestore.transactional
+    @google_firestore.transactional
     def update_in_transaction(transaction, doc_ref):
         snapshot = doc_ref.get(transaction=transaction)
 
@@ -128,7 +150,7 @@ def add_ai_guess_entry(guess):
     date_key = today.isoformat()
     transaction = db.transaction()
 
-    @firestore.transactional
+    @google_firestore.transactional
     def update_in_transaction(transaction, doc_ref):
         snapshot = doc_ref.get(transaction=transaction)
 
@@ -143,13 +165,17 @@ def add_ai_guess_entry(guess):
             data = snapshot.to_dict() or {}
 
             if data.get("status") and data.get("status") != "open":
-                logging.info(f"Guess document {date_key} is not open. Skipping bot entry.")
+                logger.info("Guess document %s is not open. Skipping bot entry.", date_key)
                 return False
 
             entries = data.get("entries", [])
 
             if any(item.get("name") == BOT_NAME for item in entries):
-                logging.info(f"{BOT_NAME} already has an entry for {date_key}. Skipping duplicate.")
+                logger.info(
+                    "%s already has an entry for %s. Skipping duplicate.",
+                    BOT_NAME,
+                    date_key,
+                )
                 return False
 
             transaction.update(doc_ref, {
@@ -182,7 +208,10 @@ def get_ai_guess(historical_data):
     ]
 
     if not historical_data:
-        logging.info(f"No historical data available. Using default guess: {DEFAULT_GUESS}")
+        logger.info(
+            "No historical data available. Using default guess: %s",
+            DEFAULT_GUESS,
+        )
         return DEFAULT_GUESS
 
     historical_context = json.dumps(historical_data, indent=2)
@@ -203,7 +232,7 @@ Do not include words.
 Do not use markdown.
 """
 
-    logging.info("Sending prediction request to Gemini.")
+    logger.info("Sending prediction request to Gemini.")
 
     response = gemini_client.models.generate_content(
         model=GEMINI_MODEL,
@@ -212,14 +241,14 @@ Do not use markdown.
 
     result = response.text.strip()
 
-    logging.info(f"AI raw response: {result}")
+    logger.info("AI raw response: %s", result)
 
     match = re.search(r"\d+", result)
 
     if match:
         return int(match.group())
 
-    logging.error(f"AI returned an invalid guess: {result}")
+    logger.error("AI returned an invalid guess: %s", result)
     return DEFAULT_GUESS
 
 
@@ -229,33 +258,30 @@ Do not use markdown.
     arg_name="timer",
 )
 def coffee_bot(timer: func.TimerRequest):
-    logging.info("Coffee bot triggered.")
+    logger.info("Coffee bot triggered.")
 
     try:
         # 1. Ensure today's prediction round exists
         created = ensure_daily_round_open()
-        logging.info(f"Daily round created: {created}")
+        logger.info("Daily round created: %s", created)
 
         if has_bot_entry_for_today():
-            logging.info(f"{BOT_NAME} already entered today. Skipping prediction.")
+            logger.info("%s already entered today. Skipping prediction.", BOT_NAME)
             return
 
         # 2. Read orders from Firebase
         historical_data = get_daily_order_counts()
 
-        logging.info(
-            f"Historical data: {historical_data}"
-        )
+        logger.info("Historical data: %s", historical_data)
 
         # 3. Ask Gemini for today's prediction
         ai_guess = get_ai_guess(historical_data)
 
-        logging.info(
-            f"AI coffee order guess: {ai_guess}"
-        )
+        logger.info("AI coffee order guess: %s", ai_guess)
 
         if ai_guess is not None:
             added = add_ai_guess_entry(ai_guess)
-            logging.info(f"AI guess entry added: {added}")
+            logger.info("AI guess entry added: %s", added)
     except Exception:
-        logging.exception("Coffee bot failed.")
+        logger.exception("Coffee bot failed.")
+        raise
