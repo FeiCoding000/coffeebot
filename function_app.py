@@ -300,6 +300,7 @@ Do not use markdown.
     return DEFAULT_GUESS
 
 
+@app.function_name(name="coffee_bot")
 @app.timer_trigger(
     # Runs once per day. Configure WEBSITE_TIME_ZONE=Australia/Sydney in Azure for Sydney local time.
     schedule="%COFFEE_BOT_SCHEDULE%",
