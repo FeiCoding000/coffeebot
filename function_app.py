@@ -38,17 +38,34 @@ def get_firebase_credential():
     return credentials.Certificate(FIREBASE_SERVICE_ACCOUNT_FILE)
 
 
-cred = get_firebase_credential()
-firebase_admin.initialize_app(cred)
+_db = None
+_gemini_client = None
 
-db = firestore.client()
+
+def get_db():
+    global _db
+
+    if _db is None:
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(get_firebase_credential())
+        _db = firestore.client()
+
+    return _db
 
 # Time zone
 SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 
 
 # Gemini
-gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+def get_gemini_client():
+    global _gemini_client
+
+    if _gemini_client is None:
+        _gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+    return _gemini_client
+
+
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 BOT_NAME = os.getenv("BOT_NAME", "Gemini 🤖")
 DEFAULT_GUESS = int(os.getenv("DEFAULT_GUESS", "90"))
@@ -105,7 +122,7 @@ def process_order(doc):
 def get_daily_order_counts():
     daily_counts = {}
 
-    orders = db.collection("orders").stream()
+    orders = get_db().collection("orders").stream()
 
     for doc in orders:
         order_date = process_order(doc)
@@ -134,13 +151,13 @@ def get_week_key(target_date):
 
 def get_today_round_ref():
     today = datetime.now(SYDNEY_TZ).date()
-    return today, db.collection("coffeeGuesses").document(today.isoformat())
+    return today, get_db().collection("coffeeGuesses").document(today.isoformat())
 
 
 def ensure_daily_round_open():
     today, doc_ref = get_today_round_ref()
     date_key = today.isoformat()
-    transaction = db.transaction()
+    transaction = get_db().transaction()
 
     @google_firestore.transactional
     def update_in_transaction(transaction, doc_ref):
@@ -179,7 +196,7 @@ def has_bot_entry_for_today():
 def add_ai_guess_entry(guess):
     today, doc_ref = get_today_round_ref()
     date_key = today.isoformat()
-    transaction = db.transaction()
+    transaction = get_db().transaction()
 
     @google_firestore.transactional
     def update_in_transaction(transaction, doc_ref):
@@ -265,7 +282,7 @@ Do not use markdown.
 
     logger.info("Sending prediction request to Gemini.")
 
-    response = gemini_client.models.generate_content(
+    response = get_gemini_client().models.generate_content(
         model=GEMINI_MODEL,
         contents=prompt,
     )
