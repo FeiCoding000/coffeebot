@@ -31,6 +31,9 @@ az functionapp config appsettings set \
   GEMINI_MODEL="gemini-3.5-flash-lite" \
   BOT_NAME="Gemini 🤖" \
   DEFAULT_GUESS="90" \
+  SKIP_PUBLIC_HOLIDAYS="true" \
+  PUBLIC_HOLIDAY_COUNTRY="AU" \
+  PUBLIC_HOLIDAY_SUBDIV="ACT" \
   COFFEE_BOT_SCHEDULE="0 0 3 * * 1-5" \
   WEBSITE_TIME_ZONE="Australia/Sydney"
 ```
@@ -56,3 +59,4 @@ func azure functionapp logstream <FUNCTION_APP_NAME>
 - If order history is empty, it uses `DEFAULT_GUESS`.
 - Firebase credentials are read from `FIREBASE_SERVICE_ACCOUNT_BASE64` first, then `FIREBASE_SERVICE_ACCOUNT_JSON`, then local `firebase-service-account.json` as a fallback.
 - For GitHub/Azure deployments, set `FIREBASE_SERVICE_ACCOUNT_BASE64` in Azure Function App settings.
+- Public holidays are skipped when `SKIP_PUBLIC_HOLIDAYS=true`. Defaults are Australia / ACT (`PUBLIC_HOLIDAY_COUNTRY=AU`, `PUBLIC_HOLIDAY_SUBDIV=ACT`).

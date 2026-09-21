@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 import azure.functions as func
 import firebase_admin
+import holidays
 from firebase_admin import credentials, firestore
 from google import genai
 from google.cloud import firestore as google_firestore
@@ -51,6 +52,36 @@ gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 BOT_NAME = os.getenv("BOT_NAME", "Gemini 🤖")
 DEFAULT_GUESS = int(os.getenv("DEFAULT_GUESS", "90"))
+SKIP_PUBLIC_HOLIDAYS = os.getenv("SKIP_PUBLIC_HOLIDAYS", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+    "y",
+}
+PUBLIC_HOLIDAY_COUNTRY = os.getenv("PUBLIC_HOLIDAY_COUNTRY", "AU")
+PUBLIC_HOLIDAY_SUBDIV = os.getenv("PUBLIC_HOLIDAY_SUBDIV", "ACT")
+
+
+def is_public_holiday(target_date):
+    if not SKIP_PUBLIC_HOLIDAYS:
+        return False
+
+    holiday_calendar = holidays.country_holidays(
+        PUBLIC_HOLIDAY_COUNTRY,
+        subdiv=PUBLIC_HOLIDAY_SUBDIV,
+        years=[target_date.year],
+    )
+    holiday_name = holiday_calendar.get(target_date)
+
+    if holiday_name:
+        logger.info(
+            "Skipping coffee bot on public holiday %s: %s",
+            target_date.isoformat(),
+            holiday_name,
+        )
+        return True
+
+    return False
 
 
 def process_order(doc):
@@ -261,6 +292,11 @@ def coffee_bot(timer: func.TimerRequest):
     logger.info("Coffee bot triggered.")
 
     try:
+        today = datetime.now(SYDNEY_TZ).date()
+
+        if is_public_holiday(today):
+            return
+
         # 1. Ensure today's prediction round exists
         created = ensure_daily_round_open()
         logger.info("Daily round created: %s", created)
